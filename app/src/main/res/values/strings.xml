@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Holkan Tracker</string>
+    <string name="action_settings">Herramientas</string>
+    <string name="alert">Alerta</string>
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="alert_sms_has_been_sent">El mensaje de alerta ha sido enviado</string>
+    <string name="alert_sms_body" formatted="false" >Alerta de %s en https://maps.google.com.mx/maps?q=%s,%s %s</string>
+    <string name="sms_has_not_been_send">El mensaje de alerta no ha sido enviado</string>
+
+</resources>
