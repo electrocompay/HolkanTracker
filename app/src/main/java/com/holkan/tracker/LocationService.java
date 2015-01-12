@@ -5,9 +5,11 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
@@ -23,7 +25,9 @@ import com.holkan.tracker.data.Tracking;
 import com.holkan.tracker.model.Device;
 import com.holkan.tracker.model.PlanInterval;
 import com.holkan.tracker.service.Connection;
+import com.holkan.tracker.service.GetDeviceRequest;
 import com.holkan.tracker.service.GetDeviceResponse;
+import com.holkan.tracker.service.PostTrackingRequest;
 import com.holkan.tracker.service.PostTrackingResponse;
 import com.holkan.tracker.service.Request;
 import com.holkan.tracker.service.Response;
@@ -62,62 +66,73 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
                 new Handler(getMainLooper()).post(new Runnable() {
                     @Override
                     public void run() {
+                        checkLocationRequest();
                         Toast.makeText(getApplicationContext(), "Server Connection Succeed", Toast.LENGTH_LONG).show();
-                        createLocationClient();
-
-                        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0,
-                                new Intent(getApplicationContext(), MainActivity.class),
-                                0);
-
-                        Notification notification = new NotificationCompat.Builder(getApplicationContext())
-                                .setContentTitle("Holkan Tracker")
-                                .setContentText("Rastreador Holkan detector de posicion")
-                                .setSmallIcon(android.R.drawable.stat_notify_sync)
-                                .setContentIntent(pendingIntent)
-                                .build();
-                        startForeground(NOTIFICATION_ID, notification);
-
-                        trackingQueue = new TrackingDAOQueue();
                     }
                 });
 
             }
 
-        } else if (response instanceof PostTrackingResponse){
+        } else if (response instanceof PostTrackingResponse) {
             PostTrackingResponse postTrackingResponse = (PostTrackingResponse) response;
 
-            DataSession.getSession(getApplicationContext()).delete(postTrackingResponse.getTracking());
+            PostTrackingRequest postTrackingRequest = (PostTrackingRequest) postTrackingResponse.getRequest();
+            Tracking tracking = new Tracking(postTrackingRequest.getTrackingId());
+            DataSession.getSession(getApplicationContext()).delete(tracking);
             Log.d("e", "Delete");
         }
     }
 
     @Override
     public void didReceiveHttpError(Connection connection, Request request) {
-        new Handler(getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(getApplicationContext(), "Server Connection Failed", Toast.LENGTH_LONG).show();
-            }
-        });
+        if (request instanceof GetDeviceRequest) {
+            tryConnectLater();
+            new Handler(getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(getApplicationContext(), "Server Connection Failed ", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
     }
 
     private class TrackingDAOQueue {
 
+        private boolean sendingTracking = false;
+
         public TrackingDAOQueue() {
             ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1);
             Runnable r = new Runnable() {
+
                 @Override
                 public void run() {
 
                     synchronized (this) {
 
-                        DaoSession dataSession = DataSession.getSession(getApplicationContext());
+                        try {
+                            if (sendingTracking == false) {
+                                sendingTracking = true;
+                            } else {
+                                return;
+                            }
+                            DaoSession dataSession = DataSession.getSession(getApplicationContext());
 
-                        List<Tracking> trackingList = dataSession.getTrackingDao().loadAll();
+                            List<Tracking> trackingList = dataSession.getTrackingDao().loadAll();
 
 
-                        for (Tracking tracking : trackingList) {
-                            connection.requestPostTracking(tracking.getLat(), tracking.getLng(), tracking.getSpeed(), tracking.getDatetime(), tracking.getEvent(), tracking.getAccuracy());
+                            for (Tracking tracking : trackingList) {
+                                try {
+
+                                    connection.requestPostTracking(tracking);
+
+
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            sendingTracking = false;
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
 
                     }
@@ -140,7 +155,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
             synchronized (this) {
                 dataSession.getTrackingDao().insertWithoutSettingPk(tracking);
             }
-            Log.d("e", "Insert: " + String.format("%f,%f acurracy: %f", location.getLatitude(), location.getLongitude(), location.getAccuracy()));
+            Log.d("e", "Insert: " + String.format("%f,%f acurracy: %f, time: %s", location.getLatitude(), location.getLongitude(), location.getAccuracy(), String.valueOf(new Date())));
         }
 
     }
@@ -157,10 +172,38 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         super.onCreate();
         connection = new Connection(getApplicationContext());
         connection.setConnectionListener(this);
-        String imei = Utils.getImei(getApplicationContext());
-        connection.requestGetDevice(imei);
+        callGetDevice();
 
+        createLocationClient();
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0,
+                new Intent(getApplicationContext(), MainActivity.class),
+                0);
+
+        Notification notification = new NotificationCompat.Builder(getApplicationContext())
+                .setContentTitle("Holkan Tracker")
+                .setContentText("Rastreador Holkan detector de posicion")
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
+                .setContentIntent(pendingIntent)
+                .build();
+        startForeground(NOTIFICATION_ID, notification);
+
+        trackingQueue = new TrackingDAOQueue();
         Toast.makeText(getApplicationContext(), "Starting Service", Toast.LENGTH_LONG).show();
+    }
+
+    private void callGetDevice() {
+        new AsyncTask<Void, Void, Void>() {
+
+
+            @Override
+            protected Void doInBackground(Void... params) {
+                String imei = Utils.getImei(getApplicationContext());
+                connection.requestGetDevice(imei);
+                return null;
+            }
+
+        }.execute();
     }
 
     @Override
@@ -183,11 +226,14 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         checkLocationRequest();
     }
 
-    private void checkLocationRequest(){
+    private void checkLocationRequest() {
+        if (device == null) {
+            return;
+        }
 
-        for (PlanInterval planInterval : device.getMonitor_plan()){
+        for (PlanInterval planInterval : device.getMonitor_plan()) {
             int hourOfDay = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-            if (planInterval.getFrom() <= hourOfDay  && hourOfDay <  planInterval.getUntil()){
+            if (planInterval.getFrom() <= hourOfDay && hourOfDay < planInterval.getUntil()) {
                 if (planInterval != currentPlan) {
                     currentPlan = planInterval;
                     locationRequest(planInterval.getInterval());
@@ -198,9 +244,18 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     }
 
+    private void tryConnectLater() {
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                callGetDevice();
+            }
+        }, 10000);
+    }
+
     private void locationRequest(long interval) {
         LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         locationRequest.setFastestInterval(interval * 1000);
         locationRequest.setInterval(interval * 1000);
         LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, this);
@@ -213,8 +268,11 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     @Override
     public void onLocationChanged(Location location) {
-        checkLocationRequest();
-        trackingQueue.saveLocation(location);
+        Log.d(getApplication().getPackageName(), String.format("LocationChanged %s", String.valueOf(new Date())));
+        if (device != null) {
+            trackingQueue.saveLocation(location);
+            checkLocationRequest();
+        }
     }
 
     @Override

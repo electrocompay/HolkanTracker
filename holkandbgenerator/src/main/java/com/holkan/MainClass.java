@@ -15,7 +15,7 @@ public class MainClass {
         client.addDoubleProperty("lat");
         client.addDoubleProperty("lng");
         client.addFloatProperty("speed");
-        client.addIntProperty("event");
+        client.addByteProperty("event");
         client.addDateProperty("datetime");
         client.addFloatProperty("accuracy");
 

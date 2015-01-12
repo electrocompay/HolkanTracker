@@ -76,6 +76,7 @@ public abstract class Request {
                 String cacheKey = url + payLoad;
 
                 long startTime = System.currentTimeMillis();
+                urlRequest.setHeader("Content-Type", "Application/Json");
                 response = connection.execute(urlRequest);
                 HttpEntity entity = response.getEntity();
                 InputStream content = entity.getContent();
@@ -122,7 +123,7 @@ public abstract class Request {
 
     }
 
-    public static final String URL_BASE = "http://holkantracker.ddns.net:2254/api/";
+    public static final String URL_BASE = "http://190.174.0.204:2254/api/";
     public static HttpClient httpclient;
 
     private static final long INVALID_TIME = -1;
@@ -155,7 +156,11 @@ public abstract class Request {
 
         String urlString = getURLBase() + asHttpString();
         RunGetContents runGetContents = new RunGetContents(urlString, requestListener);
-        executorService.execute(runGetContents);
+        if (executorService != null) {
+            executorService.execute(runGetContents);
+        } else {
+            runGetContents.run();
+        }
     }
 
     public String getRequestId() {

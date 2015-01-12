@@ -10,14 +10,9 @@ import org.json.JSONObject;
  */
 public class PostTrackingResponse extends JsonResponse {
 
-    Tracking tracking;
-
     @Override
     public void processResponse(JSONObject jsonObject, boolean isSucess) {
-        tracking = new Gson().fromJson(jsonObject.toString(), Tracking.class);
+
     }
 
-    public Tracking getTracking() {
-        return tracking;
-    }
 }

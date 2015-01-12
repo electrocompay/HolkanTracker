@@ -4,6 +4,7 @@ import android.content.Context;
 import android.text.format.DateUtils;
 
 import com.holkan.tracker.Utils.Utils;
+import com.holkan.tracker.data.Tracking;
 
 import org.apache.http.HttpResponse;
 
@@ -113,19 +114,22 @@ public class Connection implements Request.RequestListener {
         request.run();
     }
 
-    public void requestPostTracking(double lat, double lng, float speed, Date datetime, int event, float accuracy)
+    public void requestPostTracking(Tracking tracking)
     {
         String imei = Utils.getImei(context);
-        PostTrackingRequest request = new PostTrackingRequest(poolExecutor);
+        PostTrackingRequest request = new PostTrackingRequest(null);
         JsonParameters parameters = new JsonParameters();
         parameters.put("imei", imei);
-        parameters.put("lat", lat);
-        parameters.put("lng", lng);
-        parameters.put("speed", speed);
+        parameters.put("lat", tracking.getLat());
+        parameters.put("lng", tracking.getLng());
+        parameters.put("speed", tracking.getSpeed());
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
-        parameters.put("datetime", formatter.format(datetime));
+        parameters.put("datetime", formatter.format(tracking.getDatetime()));
+        parameters.put("event", tracking.getEvent());
+        parameters.put("accuracy", tracking.getAccuracy());
         request.setJsonParameters(parameters);
         request.setRequestListener(this);
+        request.setTrackingId(tracking.getId());
         request.run();
     }
 

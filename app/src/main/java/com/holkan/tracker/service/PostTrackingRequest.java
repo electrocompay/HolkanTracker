@@ -11,6 +11,8 @@ import java.util.concurrent.ExecutorService;
 public class PostTrackingRequest extends JsonRequest {
 
 
+    private long trackingId;
+
     public PostTrackingRequest(ExecutorService executorService) {
         super(executorService);
     }
@@ -23,6 +25,14 @@ public class PostTrackingRequest extends JsonRequest {
     @Override
     public String asHttpString() {
         return "tracking";
+    }
+
+    public void setTrackingId(long trackingId) {
+        this.trackingId = trackingId;
+    }
+
+    public long getTrackingId() {
+        return trackingId;
     }
 
     @Override
