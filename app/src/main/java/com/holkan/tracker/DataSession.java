@@ -15,7 +15,7 @@ public class DataSession {
     public static DaoSession getSession(Context context) {
 
         if (session == null) {
-            DaoMaster.DevOpenHelper openHelper = new DaoMaster.DevOpenHelper(context, "DB", null);
+            DaoMaster.DevOpenHelper openHelper = new DaoMaster.DevOpenHelper(context, "HolkanDB", null);
             DaoMaster daoMaster = new DaoMaster(openHelper.getWritableDatabase());
             session = daoMaster.newSession();
         }

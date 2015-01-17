@@ -19,6 +19,9 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.HttpEntityWrapper;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.RequestExpectContinue;
 
@@ -52,10 +55,14 @@ public abstract class Request {
                 urlRequest = new HttpPost(url);
             }
 
+
+
             //         Logger.debug(String.format("httpRequest - %s", urlRequest.getURI().toString()));
 
             // connection = Request.getNewHttpClient();
-            connection = httpGZIPClient(httpGZIPClient(new DefaultHttpClient()));
+            HttpParams params = new BasicHttpParams();
+            HttpConnectionParams.setConnectionTimeout(params, 3000);
+            connection = httpGZIPClient(httpGZIPClient(new DefaultHttpClient(params)));
             ((DefaultHttpClient) connection).removeRequestInterceptorByClass(RequestExpectContinue.class);
 
 
@@ -123,7 +130,7 @@ public abstract class Request {
 
     }
 
-    public static final String URL_BASE = "http://190.174.0.204:2254/api/";
+    public static final String URL_BASE = "http://187.191.86.230/HolkanTracking/api/";
     public static HttpClient httpclient;
 
     private static final long INVALID_TIME = -1;

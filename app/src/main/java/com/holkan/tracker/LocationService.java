@@ -3,6 +3,7 @@ package com.holkan.tracker;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.os.AsyncTask;
@@ -19,6 +20,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.holkan.holkantracker.R;
 import com.holkan.tracker.Utils.Utils;
 import com.holkan.tracker.data.DaoSession;
 import com.holkan.tracker.data.Tracking;
@@ -45,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 public class LocationService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, Connection.ConnectionListener {
 
     private static final int NOTIFICATION_ID = 1;
+    public static final String STAT_SERVICE_STARTED = "SERVICE_STARTED";
     private GoogleApiClient googleApiClient;
     private TrackingDAOQueue trackingQueue;
     private Connection connection;
@@ -60,22 +63,18 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
             String imei = getDeviceResponse.getDevice().getImei();
 
             if (imei.equals(Utils.getImei(getApplicationContext()))) {
-
                 device = getDeviceResponse.getDevice();
-
                 new Handler(getMainLooper()).post(new Runnable() {
                     @Override
                     public void run() {
+                        Toast.makeText(getApplicationContext(), "Conexión con servidor exitosa", Toast.LENGTH_LONG).show();
                         checkLocationRequest();
-                        Toast.makeText(getApplicationContext(), "Server Connection Succeed", Toast.LENGTH_LONG).show();
                     }
                 });
-
             }
 
         } else if (response instanceof PostTrackingResponse) {
             PostTrackingResponse postTrackingResponse = (PostTrackingResponse) response;
-
             PostTrackingRequest postTrackingRequest = (PostTrackingRequest) postTrackingResponse.getRequest();
             Tracking tracking = new Tracking(postTrackingRequest.getTrackingId());
             DataSession.getSession(getApplicationContext()).delete(tracking);
@@ -90,7 +89,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
             new Handler(getMainLooper()).post(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(getApplicationContext(), "Server Connection Failed ", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), "Conexion con servidor fallida", Toast.LENGTH_LONG).show();
                 }
             });
         }
@@ -170,6 +169,11 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     @Override
     public void onCreate() {
         super.onCreate();
+        if (!autoStart()) {
+            stopSelf();
+            return;
+        }
+        setStatusCreated(true);
         connection = new Connection(getApplicationContext());
         connection.setConnectionListener(this);
         callGetDevice();
@@ -189,7 +193,33 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         startForeground(NOTIFICATION_ID, notification);
 
         trackingQueue = new TrackingDAOQueue();
-        Toast.makeText(getApplicationContext(), "Starting Service", Toast.LENGTH_LONG).show();
+        Toast.makeText(getApplicationContext(), "Iniciando servicio de monitoreo", Toast.LENGTH_LONG).show();
+    }
+
+    private boolean autoStart() {
+        return getApplicationContext().getSharedPreferences("settings", MODE_PRIVATE).getBoolean(SettingsFragment.PREF_AUTOSTART_SERVICE, false);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (getStatusCreated()) {
+            setStatusCreated(false);
+            Toast.makeText(getApplicationContext(), "Deteniendo servicio de monitoreo", Toast.LENGTH_SHORT).show();
+        }
+        if (googleApiClient != null && googleApiClient.isConnected())
+            googleApiClient.disconnect();
+        super.onDestroy();
+    }
+
+    private void setStatusCreated(boolean b) {
+        getApplicationContext().getSharedPreferences("status", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(STAT_SERVICE_STARTED, b)
+                .commit();
+    }
+
+    private boolean getStatusCreated() {
+        return getApplicationContext().getSharedPreferences("status", Context.MODE_PRIVATE).getBoolean(STAT_SERVICE_STARTED, false);
     }
 
     private void callGetDevice() {
@@ -219,7 +249,6 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
                 .build();
         googleApiClient.connect();
     }
-
 
     @Override
     public void onConnected(Bundle bundle) {
@@ -263,7 +292,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     @Override
     public void onConnectionSuspended(int i) {
-        Toast.makeText(getApplicationContext(), "Connection Suspended", Toast.LENGTH_LONG).show();
+        Toast.makeText(getApplicationContext(), "Conexión con servicio de localización suspendida", Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -277,6 +306,6 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
-        Toast.makeText(getApplicationContext(), "Connection Failed", Toast.LENGTH_LONG).show();
+        Toast.makeText(getApplicationContext(), R.string.location_service_connection_failed + connectionResult.toString(), Toast.LENGTH_LONG).show();
     }
 }
