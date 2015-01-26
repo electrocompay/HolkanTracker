@@ -130,6 +130,7 @@ public abstract class Request {
 
     }
 
+//    public static final String URL_BASE = "http://192.168.0.36:2254/api/";
     public static final String URL_BASE = "http://187.191.86.230/HolkanTracking/api/";
     public static HttpClient httpclient;
 

@@ -1,17 +1,22 @@
 package com.holkan.tracker;
 
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.location.GpsStatus;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.provider.Settings;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -53,6 +58,8 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     private Connection connection;
     private Device device;
     private PlanInterval currentPlan;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private Location cachedLocation;
 
     @Override
     public void didResult(Connection connection, Response response) {
@@ -60,9 +67,10 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         if (response instanceof GetDeviceResponse) {
 
             GetDeviceResponse getDeviceResponse = (GetDeviceResponse) response;
-            String imei = getDeviceResponse.getDevice().getImei();
+            int imei = Integer.valueOf(getDeviceResponse.getDevice().getImei());
 
-            if (imei.equals(Utils.getImei(getApplicationContext()))) {
+
+            if (imei == Integer.valueOf(Utils.getImei(getApplicationContext()))) {
                 device = getDeviceResponse.getDevice();
                 new Handler(getMainLooper()).post(new Runnable() {
                     @Override
@@ -97,7 +105,8 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     private class TrackingDAOQueue {
 
-        private boolean sendingTracking = false;
+        private Boolean sendingTracking = false;
+        private boolean firstTracking = true;
 
         public TrackingDAOQueue() {
             ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1);
@@ -106,7 +115,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
                 @Override
                 public void run() {
 
-                    synchronized (this) {
+                    synchronized (sendingTracking) {
 
                         try {
                             if (sendingTracking == false) {
@@ -142,18 +151,30 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         }
 
         public void saveLocation(Location location) {
+            if (location == null){
+                location = cachedLocation;
+            } else {
+                cachedLocation = location;
+            }
+
+            if (location == null) return;
+
             Tracking tracking = new Tracking();
             tracking.setDatetime(new Date());
             tracking.setLat(location.getLatitude());
             tracking.setLng(location.getLongitude());
-            tracking.setSpeed(location.getSpeed());
-            tracking.setEvent(1);
+            tracking.setSpeed(Math.round(location.getSpeed()));
+            tracking.setActive_gps(locationServicesAvailable());
+            if (firstTracking) {
+                tracking.setEvent((byte) 6);
+                firstTracking = false;
+            } else
+                tracking.setEvent((byte) 1);
             tracking.setAccuracy(location.getAccuracy());
+            tracking.setProvider(location.getProvider());
 
             DaoSession dataSession = DataSession.getSession(getApplicationContext());
-            synchronized (this) {
-                dataSession.getTrackingDao().insertWithoutSettingPk(tracking);
-            }
+            dataSession.getTrackingDao().insertWithoutSettingPk(tracking);
             Log.d("e", "Insert: " + String.format("%f,%f acurracy: %f, time: %s", location.getLatitude(), location.getLongitude(), location.getAccuracy(), String.valueOf(new Date())));
         }
 
@@ -194,6 +215,17 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
         trackingQueue = new TrackingDAOQueue();
         Toast.makeText(getApplicationContext(), "Iniciando servicio de monitoreo", Toast.LENGTH_LONG).show();
+
+        LocationManager locationManager = (LocationManager) getApplicationContext().getSystemService(Service.LOCATION_SERVICE);
+        locationManager.addGpsStatusListener(new GpsStatus.Listener() {
+            @Override
+            public void onGpsStatusChanged(int event) {
+                if (event == GpsStatus.GPS_EVENT_STOPPED) {
+                    forceCheckLocationRequest();
+                }
+            }
+        });
+
     }
 
     private boolean autoStart() {
@@ -255,8 +287,8 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         checkLocationRequest();
     }
 
-    private void checkLocationRequest() {
-        if (device == null) {
+    private synchronized void checkLocationRequest() {
+        if (device == null || googleApiClient == null || !googleApiClient.isConnected()) {
             return;
         }
 
@@ -273,6 +305,11 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     }
 
+    private void forceCheckLocationRequest() {
+        currentPlan = null;
+        checkLocationRequest();
+    }
+
     private void tryConnectLater() {
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
@@ -283,11 +320,85 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     }
 
     private void locationRequest(long interval) {
-        LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setFastestInterval(interval * 1000);
-        locationRequest.setInterval(interval * 1000);
-        LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, this);
+        final long fInterval = interval;
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (locationServicesAvailable()) {
+                    LocationRequest locationRequest = new LocationRequest();
+                    locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                    locationRequest.setFastestInterval(fInterval * 1000);
+                    locationRequest.setInterval(fInterval * 1000);
+                    LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, LocationService.this);
+                } else {
+                    onLocationChanged(LocationServices.FusedLocationApi.getLastLocation(googleApiClient));
+                    currentPlan = null;
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            notifyGPSNetworkNotAvailable();
+                        }
+                    });
+                    scheduledCheckGPSNetwork();
+                }
+            }
+
+        });
+
+    }
+
+    private void scheduledCheckGPSNetwork() {
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                checkLocationServicesAvailable();
+            }
+        }, 10000);
+    }
+
+    private void checkLocationServicesAvailable() {
+        if (locationServicesAvailable()) {
+            checkLocationRequest();
+        } else {
+            scheduledCheckGPSNetwork();
+        }
+    }
+
+    private boolean locationServicesAvailable() {
+        LocationManager lm = null;
+        boolean gps_enabled = false;
+        if (lm == null)
+            lm = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+        try {
+            gps_enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception ex) {
+        }
+        return (gps_enabled);
+    }
+
+
+    private void notifyGPSNetworkNotAvailable() {
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(this)
+                        .setSmallIcon(android.R.drawable.stat_notify_error)
+                        .setContentTitle(getString(R.string.app_name))
+                        .setContentText(getString(R.string.servicios_localizacion_inactivo));
+        Intent resultIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        stackBuilder.addParentStack(MainActivity.class);
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent =
+                stackBuilder.getPendingIntent(
+                        0,
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                );
+        mBuilder.setContentIntent(resultPendingIntent);
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        Notification notification = mBuilder.build();
+        notification.flags |= Notification.FLAG_AUTO_CANCEL;
+        mNotificationManager.notify(0, notification);
     }
 
     @Override
@@ -297,6 +408,9 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     @Override
     public void onLocationChanged(Location location) {
+        if (location != null){
+            cachedLocation = location;
+        }
         Log.d(getApplication().getPackageName(), String.format("LocationChanged %s", String.valueOf(new Date())));
         if (device != null) {
             trackingQueue.saveLocation(location);

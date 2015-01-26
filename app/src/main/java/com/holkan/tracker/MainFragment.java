@@ -5,10 +5,13 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.telephony.SmsManager;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +28,8 @@ import com.google.android.gms.location.LocationServices;
 import com.holkan.holkantracker.R;
 
 import java.util.Date;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -32,12 +37,12 @@ import java.util.Date;
  */
 public class MainFragment extends Fragment implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
-
     private static final int ALERT_MESSAGES_COUNT = 3;
+    private static final int ALERT_MESSAGES_INTERVAL_MINUTES = 5;
     private GoogleApiClient googleApiClient;
-    private int currentMessageCount;
     private ToggleButton alertButton;
     private TextView textAlert;
+    private SMSSender smsSender;
 
     public MainFragment() {
 
@@ -55,8 +60,7 @@ public class MainFragment extends Fragment implements GoogleApiClient.Connection
         alertButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked){
-                    getLocationAndSendSMS();
+                if (isChecked) {
                     updateButtonStateAlert(false);
                 } else {
                     updateButtonStateAlert(true);
@@ -77,9 +81,11 @@ public class MainFragment extends Fragment implements GoogleApiClient.Connection
     }
 
     private synchronized void createLocationClient() {
+        if (googleApiClient != null && googleApiClient.isConnected())
+            googleApiClient.disconnect();
         googleApiClient = new GoogleApiClient.Builder(getActivity())
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
+                .addConnectionCallbacks(MainFragment.this)
+                .addOnConnectionFailedListener(MainFragment.this)
                 .addApi(LocationServices.API)
                 .build();
         googleApiClient.connect();
@@ -90,49 +96,14 @@ public class MainFragment extends Fragment implements GoogleApiClient.Connection
         super.onActivityCreated(savedInstanceState);
     }
 
-    private void sendAlertSMSs(Location location) {
-
-        Toast.makeText(getActivity(), R.string.alert_sms_has_been_sent,
-                Toast.LENGTH_LONG).show();
-        SharedPreferences preferences = getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE);
-
-        for (int i = 1; i < 4; i++) {
-
-            String phoneNumber = preferences.getString("PHONE" + String.valueOf(i), null);
-            String name = preferences.getString(SettingsFragment.PREF_NAME, null);
-
-            if (!TextUtils.isEmpty(phoneNumber)) {
-                String strLat = String.format("%.06f", location.getLatitude()).replace(",", ".");
-                String strLng = String.format("%.06f", location.getLongitude()).replace(",", ".");
-                String smsBody = getString(R.string.alert_sms_body, name, strLat, strLng, new Date().toString());
-                try {
-                    SmsManager smsManager = SmsManager.getDefault();
-                    smsManager.sendTextMessage(phoneNumber,
-                            null,
-                            smsBody,
-                            null,
-                            null);
-                } catch (Exception ex) {
-                    Toast.makeText(getActivity(), R.string.sms_has_not_been_send,
-                            Toast.LENGTH_LONG).show();
-                    ex.printStackTrace();
-                }
-            }
-
-        }
-
-
-    }
-
     @Override
     public void onConnected(Bundle bundle) {
         LocationRequest locationRequest = new LocationRequest();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        final int refreshInterval = 5 * 60 * 1000;
+        final int refreshInterval = 1;
         locationRequest.setFastestInterval(refreshInterval);
         locationRequest.setInterval(refreshInterval);
-        locationRequest.setNumUpdates(ALERT_MESSAGES_COUNT);
-        currentMessageCount = ALERT_MESSAGES_COUNT;
+        locationRequest.setNumUpdates(1);
         LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, this);
     }
 
@@ -148,24 +119,104 @@ public class MainFragment extends Fragment implements GoogleApiClient.Connection
 
     @Override
     public void onLocationChanged(Location location) {
-        if (alertButton.isChecked()){
-            LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
-            return;
-        }
-        currentMessageCount--;
-        sendAlertSMSs(location);
-        if (currentMessageCount == 0){
-            updateButtonStateAlert(true);
+        if (alertButton.isChecked()) {
+            smsSender = new SMSSender();
+            smsSender.startSendingSMSs(location);
         }
     }
 
     private void updateButtonStateAlert(boolean b) {
-        if (b){
+        if (b) {
             alertButton.setChecked(false);
             textAlert.setText("Alerta");
+            smsSender.cancelSendingSMSs();
         } else {
             alertButton.setChecked(true);
             textAlert.setText("Cancelar");
+            getLocationAndSendSMS();
         }
     }
+
+
+    private class SMSSender {
+
+
+        private ScheduledThreadPoolExecutor poolExecutor;
+        private int currentMessageCount;
+
+        public void startSendingSMSs(final Location location) {
+            currentMessageCount = ALERT_MESSAGES_COUNT;
+            poolExecutor = new ScheduledThreadPoolExecutor(1);
+            final Location fLocation = location;
+
+            poolExecutor.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+
+                    sendAlertSMSs(fLocation);
+                }
+            }, 0, ALERT_MESSAGES_INTERVAL_MINUTES, TimeUnit.MINUTES);
+        }
+
+        public synchronized void cancelSendingSMSs() {
+            Log.d(getActivity().getPackageName(), "Cancel Sending SMS");
+            if (poolExecutor != null)
+                poolExecutor.shutdown();
+        }
+
+        private synchronized void sendAlertSMSs(Location location) {
+
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(getActivity(), R.string.alert_sms_has_been_sent,
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+            SharedPreferences preferences = getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE);
+            Log.d(getActivity().getPackageName(), "Sending SMS");
+
+            for (int i = 1; i < 4; i++) {
+
+                String phoneNumber = preferences.getString("PHONE" + String.valueOf(i), null);
+                String name = preferences.getString(SettingsFragment.PREF_NAME, null);
+
+                if (!TextUtils.isEmpty(phoneNumber)) {
+                    String strLat = String.format("%.06f", location.getLatitude()).replace(",", ".");
+                    String strLng = String.format("%.06f", location.getLongitude()).replace(",", ".");
+                    String smsBody = getString(R.string.alert_sms_body, name, strLat, strLng, new Date().toString());
+                    try {
+                        SmsManager smsManager = SmsManager.getDefault();
+                        smsManager.sendTextMessage(phoneNumber,
+                                null,
+                                smsBody,
+                                null,
+                                null);
+                    } catch (Exception ex) {
+                        Toast.makeText(getActivity(), R.string.sms_has_not_been_send,
+                                Toast.LENGTH_LONG).show();
+                        ex.printStackTrace();
+                    }
+                }
+
+            }
+
+            updateSendingState();
+
+        }
+
+        private void updateSendingState() {
+            currentMessageCount--;
+            if (currentMessageCount == 0) {
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateButtonStateAlert(true);
+                    }
+                });
+            }
+        }
+
+    }
+
 }

@@ -9,10 +9,12 @@ public class Tracking {
     private Long id;
     private Double lat;
     private Double lng;
-    private Float speed;
-    private Integer event;
+    private Integer speed;
+    private Byte event;
     private java.util.Date datetime;
     private Float accuracy;
+    private String provider;
+    private Boolean active_gps;
 
     public Tracking() {
     }
@@ -21,7 +23,7 @@ public class Tracking {
         this.id = id;
     }
 
-    public Tracking(Long id, Double lat, Double lng, Float speed, Integer event, java.util.Date datetime, Float accuracy) {
+    public Tracking(Long id, Double lat, Double lng, Integer speed, Byte event, java.util.Date datetime, Float accuracy, String provider, Boolean active_gps) {
         this.id = id;
         this.lat = lat;
         this.lng = lng;
@@ -29,6 +31,8 @@ public class Tracking {
         this.event = event;
         this.datetime = datetime;
         this.accuracy = accuracy;
+        this.provider = provider;
+        this.active_gps = active_gps;
     }
 
     public Long getId() {
@@ -55,19 +59,19 @@ public class Tracking {
         this.lng = lng;
     }
 
-    public Float getSpeed() {
+    public Integer getSpeed() {
         return speed;
     }
 
-    public void setSpeed(Float speed) {
+    public void setSpeed(Integer speed) {
         this.speed = speed;
     }
 
-    public Integer getEvent() {
+    public Byte getEvent() {
         return event;
     }
 
-    public void setEvent(Integer event) {
+    public void setEvent(Byte event) {
         this.event = event;
     }
 
@@ -85,6 +89,22 @@ public class Tracking {
 
     public void setAccuracy(Float accuracy) {
         this.accuracy = accuracy;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public Boolean getActive_gps() {
+        return active_gps;
+    }
+
+    public void setActive_gps(Boolean active_gps) {
+        this.active_gps = active_gps;
     }
 
 }

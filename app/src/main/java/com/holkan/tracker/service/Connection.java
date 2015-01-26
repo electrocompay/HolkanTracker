@@ -127,6 +127,8 @@ public class Connection implements Request.RequestListener {
         parameters.put("datetime", formatter.format(tracking.getDatetime()));
         parameters.put("event", tracking.getEvent());
         parameters.put("accuracy", tracking.getAccuracy());
+        parameters.put("provider", tracking.getProvider());
+        parameters.put("active_gps", tracking.getActive_gps());
         request.setJsonParameters(parameters);
         request.setRequestListener(this);
         request.setTrackingId(tracking.getId());

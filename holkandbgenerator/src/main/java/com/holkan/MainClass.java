@@ -14,10 +14,12 @@ public class MainClass {
         client.addIdProperty();
         client.addDoubleProperty("lat");
         client.addDoubleProperty("lng");
-        client.addFloatProperty("speed");
+        client.addIntProperty("speed");
         client.addByteProperty("event");
         client.addDateProperty("datetime");
         client.addFloatProperty("accuracy");
+        client.addStringProperty("provider");
+        client.addBooleanProperty("active_gps");
 
         try {
             DaoGenerator daoGenerator = new DaoGenerator();

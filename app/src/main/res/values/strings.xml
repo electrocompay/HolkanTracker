@@ -24,5 +24,9 @@
     <string name="phone3">Teléfono 3</string>
     <string name="phone2">Teléfono 2</string>
     <string name="location_service_connection_failed">Conexión con servicio de localización fallida </string>
+    <string name="gps_network_not_enabled">Los servicios de localización no estan disponibles</string>
+    <string name="open_location_settings">Configurar</string>
+    <string name="Cancel">Cancelar</string>
+    <string name="servicios_localizacion_inactivo">Servicios de localización inactivos. Haga click para activarlos</string>
 
 </resources>
