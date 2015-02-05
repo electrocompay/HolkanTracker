@@ -8,7 +8,7 @@ public class MainClass {
 
     public static void main(String[] args) {
 
-        Schema schema = new Schema(1, "com.holkan.tracker.data");
+        Schema schema = new Schema(2, "com.holkan.tracker.data");
 
         Entity client = schema.addEntity("Tracking");
         client.addIdProperty();
@@ -20,6 +20,8 @@ public class MainClass {
         client.addFloatProperty("accuracy");
         client.addStringProperty("provider");
         client.addBooleanProperty("active_gps");
+        client.addIntProperty("battery");
+        client.addIntProperty("satellites");
 
         try {
             DaoGenerator daoGenerator = new DaoGenerator();

@@ -18,6 +18,10 @@ public class Device {
         return imei;
     }
 
+    public String getNotification_id() {
+        return notification_id;
+    }
+
     public ArrayList<PlanInterval> getMonitor_plan() {
         return monitor_plan;
     }

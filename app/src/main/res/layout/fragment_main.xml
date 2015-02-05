@@ -18,8 +18,8 @@
 
         <ToggleButton
             android:id="@+id/alertButton"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
+            android:layout_width="130dp"
+            android:layout_height="130dp"
             android:background="@drawable/background_alert"
             android:textOn=""
             android:textOff=""/>

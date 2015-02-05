@@ -1,5 +1,6 @@
 package com.holkan.tracker.service;
 
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.holkan.tracker.Utils.Utils;
@@ -27,14 +28,17 @@ import org.apache.http.protocol.RequestExpectContinue;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.util.concurrent.ExecutorService;
-import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 
 public abstract class Request {
 
     private static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
     private static final String ENCODING_GZIP = "gzip";
+//    public static final String URL_BASE = "http://192.168.0.36:2254/api/";
+//    public static final String URL_BASE = "http://187.191.86.230/HolkanTracking/api/";
+    public static final String URL_BASE = "http://holkantracker.ddns.net:2254/api/";
 
     private class RunGetContents implements Runnable {
         private final String url;
@@ -56,15 +60,13 @@ public abstract class Request {
             }
 
 
-
-            //         Logger.debug(String.format("httpRequest - %s", urlRequest.getURI().toString()));
+            Log.d(getClass().toString(), String.format("httpRequest - %s", urlRequest.getURI().toString()));
 
             // connection = Request.getNewHttpClient();
             HttpParams params = new BasicHttpParams();
             HttpConnectionParams.setConnectionTimeout(params, 3000);
             connection = httpGZIPClient(httpGZIPClient(new DefaultHttpClient(params)));
             ((DefaultHttpClient) connection).removeRequestInterceptorByClass(RequestExpectContinue.class);
-
 
             try {
                 String payLoad = getPayLoad();
@@ -75,7 +77,7 @@ public abstract class Request {
                     // StringEntity entity = new StringEntity(payLoad);
 
                     ((HttpPost) urlRequest).setEntity(entity);
-                   Log.d(getClass().toString(), String.format("Payload - %s", payLoad));
+                    Log.d(getClass().toString(), String.format("Payload - %s", payLoad));
                 }
 
                 String data = null;
@@ -97,13 +99,19 @@ public abstract class Request {
                 Log.d(getClass().toString(), String.format("Response Payload - %s", data));
 
                 if (requestListener != null) {
-                    /*
-                     * if (response.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_OK) {
-                     */
-                    requestListener.didReceiveContent(Request.this, response, data);
-                    /*
-                     * } else { handleError(null, response, is); }
-                     */
+
+                    if (response.getStatusLine().getStatusCode() / 100 == 2) {
+
+                        requestListener.didReceiveContent(Request.this, response, data);
+
+                    } else {
+
+                        if (TextUtils.isEmpty(data)){
+                            data = String.valueOf(response.getStatusLine().getStatusCode());
+                        }
+                        handleError(null, response, data);
+                    }
+
                 }
             } catch (Exception e) {
                 handleError(e, null, null);
@@ -130,8 +138,6 @@ public abstract class Request {
 
     }
 
-//    public static final String URL_BASE = "http://192.168.0.36:2254/api/";
-    public static final String URL_BASE = "http://187.191.86.230/HolkanTracking/api/";
     public static HttpClient httpclient;
 
     private static final long INVALID_TIME = -1;

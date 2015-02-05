@@ -15,8 +15,10 @@ public class GetDeviceResponse extends JsonResponse {
     @Override
     public void processResponse(JSONObject jsonObject, boolean isSucess) {
 
-        Gson gson = new Gson();
-        device = gson.fromJson(jsonObject.toString(), Device.class);
+        if (isSucess){
+            Gson gson = new Gson();
+            device = gson.fromJson(jsonObject.toString(), Device.class);
+        }
 
     }
 

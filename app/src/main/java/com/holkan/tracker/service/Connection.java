@@ -1,6 +1,7 @@
 package com.holkan.tracker.service;
 
 import android.content.Context;
+import android.location.Location;
 import android.text.format.DateUtils;
 
 import com.holkan.tracker.Utils.Utils;
@@ -129,9 +130,45 @@ public class Connection implements Request.RequestListener {
         parameters.put("accuracy", tracking.getAccuracy());
         parameters.put("provider", tracking.getProvider());
         parameters.put("active_gps", tracking.getActive_gps());
+        parameters.put("battery", tracking.getBattery());
+        parameters.put("satellites", tracking.getSatellites());
         request.setJsonParameters(parameters);
         request.setRequestListener(this);
         request.setTrackingId(tracking.getId());
+        request.run();
+    }
+
+    public void requestPostTracking(Location location, int event)
+    {
+        String imei = Utils.getImei(context);
+        PostTrackingRequest request = new PostTrackingRequest(null);
+        JsonParameters parameters = new JsonParameters();
+        parameters.put("imei", imei);
+        parameters.put("lat", location.getLatitude());
+        parameters.put("lng", location.getLongitude());
+        parameters.put("speed", Math.round(location.getSpeed()));
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
+        parameters.put("datetime", formatter.format(location.getTime()));
+        parameters.put("event", event);
+        parameters.put("accuracy", location.getAccuracy());
+        parameters.put("provider", location.getProvider());
+        parameters.put("active_gps", Utils.locationServicesAvailable(context));
+        parameters.put("battery", Utils.getBatteryLevel(context));
+        parameters.put("satellites", Utils.getSatellites(context));
+        request.setJsonParameters(parameters);
+        request.setRequestListener(this);
+        request.run();
+    }
+
+    public void requestSetNotificationId(String notificationId)
+    {
+        String imei = Utils.getImei(context);
+        SetNotificationIdRequest request = new SetNotificationIdRequest(poolExecutor);
+        JsonParameters parameters = new JsonParameters();
+        parameters.put("imei", imei);
+        parameters.put("notificationId", notificationId);
+        request.setJsonParameters(parameters);
+        request.setRequestListener(this);
         request.run();
     }
 

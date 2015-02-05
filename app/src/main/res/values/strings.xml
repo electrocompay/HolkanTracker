@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Holkan Rastreo Satelital</string>
+    <string name="app_name">Holkan Tracker</string>
     <string name="action_settings">Herramientas</string>
     <string name="alert">Alerta</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
@@ -16,10 +16,10 @@
     <string name="summary_edittext_username">Nombre de usuario</string>
     <string name="dialog_title_user_name">Cambiar Nombre de Usuario</string>
     <string name="tools">Herramientas</string>
-    <string name="monitoring">Monitoreo</string>
-    <string name="activate_tracking">Activar Rastreo Holkan</string>
+    <string name="monitoring">Monitoreo en tiempo real</string>
+    <string name="activate_tracking">Activar Servicio Holkan</string>
     <string name="contact_for_alerting">Contactos para alertas SMS</string>
-    <string name="name">Nombre</string>
+    <string name="name">Mi nombre es:</string>
     <string name="phone1">Teléfono 1</string>
     <string name="phone3">Teléfono 3</string>
     <string name="phone2">Teléfono 2</string>
@@ -28,5 +28,6 @@
     <string name="open_location_settings">Configurar</string>
     <string name="Cancel">Cancelar</string>
     <string name="servicios_localizacion_inactivo">Servicios de localización inactivos. Haga click para activarlos</string>
+    <string name="should_configure_al_least_one_phone">Debe configurar al menos un número de teléfono</string>
 
 </resources>

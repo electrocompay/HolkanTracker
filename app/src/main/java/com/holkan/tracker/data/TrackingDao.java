@@ -32,6 +32,8 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
         public final static Property Accuracy = new Property(6, Float.class, "accuracy", false, "ACCURACY");
         public final static Property Provider = new Property(7, String.class, "provider", false, "PROVIDER");
         public final static Property Active_gps = new Property(8, Boolean.class, "active_gps", false, "ACTIVE_GPS");
+        public final static Property Battery = new Property(9, Integer.class, "battery", false, "BATTERY");
+        public final static Property Satellites = new Property(10, Integer.class, "satellites", false, "SATELLITES");
     };
 
 
@@ -55,7 +57,9 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
                 "'DATETIME' INTEGER," + // 5: datetime
                 "'ACCURACY' REAL," + // 6: accuracy
                 "'PROVIDER' TEXT," + // 7: provider
-                "'ACTIVE_GPS' INTEGER);"); // 8: active_gps
+                "'ACTIVE_GPS' INTEGER," + // 8: active_gps
+                "'BATTERY' INTEGER," + // 9: battery
+                "'SATELLITES' INTEGER);"); // 10: satellites
     }
 
     /** Drops the underlying database table. */
@@ -113,6 +117,16 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
         if (active_gps != null) {
             stmt.bindLong(9, active_gps ? 1l: 0l);
         }
+ 
+        Integer battery = entity.getBattery();
+        if (battery != null) {
+            stmt.bindLong(10, battery);
+        }
+ 
+        Integer satellites = entity.getSatellites();
+        if (satellites != null) {
+            stmt.bindLong(11, satellites);
+        }
     }
 
     /** @inheritdoc */
@@ -133,7 +147,9 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
             cursor.isNull(offset + 5) ? null : new java.util.Date(cursor.getLong(offset + 5)), // datetime
             cursor.isNull(offset + 6) ? null : cursor.getFloat(offset + 6), // accuracy
             cursor.isNull(offset + 7) ? null : cursor.getString(offset + 7), // provider
-            cursor.isNull(offset + 8) ? null : cursor.getShort(offset + 8) != 0 // active_gps
+            cursor.isNull(offset + 8) ? null : cursor.getShort(offset + 8) != 0, // active_gps
+            cursor.isNull(offset + 9) ? null : cursor.getInt(offset + 9), // battery
+            cursor.isNull(offset + 10) ? null : cursor.getInt(offset + 10) // satellites
         );
         return entity;
     }
@@ -150,6 +166,8 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
         entity.setAccuracy(cursor.isNull(offset + 6) ? null : cursor.getFloat(offset + 6));
         entity.setProvider(cursor.isNull(offset + 7) ? null : cursor.getString(offset + 7));
         entity.setActive_gps(cursor.isNull(offset + 8) ? null : cursor.getShort(offset + 8) != 0);
+        entity.setBattery(cursor.isNull(offset + 9) ? null : cursor.getInt(offset + 9));
+        entity.setSatellites(cursor.isNull(offset + 10) ? null : cursor.getInt(offset + 10));
      }
     
     /** @inheritdoc */

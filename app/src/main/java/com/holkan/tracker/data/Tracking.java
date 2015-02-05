@@ -15,6 +15,8 @@ public class Tracking {
     private Float accuracy;
     private String provider;
     private Boolean active_gps;
+    private Integer battery;
+    private Integer satellites;
 
     public Tracking() {
     }
@@ -23,7 +25,7 @@ public class Tracking {
         this.id = id;
     }
 
-    public Tracking(Long id, Double lat, Double lng, Integer speed, Byte event, java.util.Date datetime, Float accuracy, String provider, Boolean active_gps) {
+    public Tracking(Long id, Double lat, Double lng, Integer speed, Byte event, java.util.Date datetime, Float accuracy, String provider, Boolean active_gps, Integer battery, Integer satellites) {
         this.id = id;
         this.lat = lat;
         this.lng = lng;
@@ -33,6 +35,8 @@ public class Tracking {
         this.accuracy = accuracy;
         this.provider = provider;
         this.active_gps = active_gps;
+        this.battery = battery;
+        this.satellites = satellites;
     }
 
     public Long getId() {
@@ -105,6 +109,22 @@ public class Tracking {
 
     public void setActive_gps(Boolean active_gps) {
         this.active_gps = active_gps;
+    }
+
+    public Integer getBattery() {
+        return battery;
+    }
+
+    public void setBattery(Integer battery) {
+        this.battery = battery;
+    }
+
+    public Integer getSatellites() {
+        return satellites;
+    }
+
+    public void setSatellites(Integer satellites) {
+        this.satellites = satellites;
     }
 
 }
