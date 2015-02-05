@@ -4,11 +4,11 @@ android {
     compileSdkVersion 21
     buildToolsVersion "21.1.2"
     defaultConfig {
-        applicationId "holkntracker.kolkan.com.holkantracker"
+        applicationId "com.holkan.tracker"
         minSdkVersion 9
         targetSdkVersion 21
-        versionCode 6
-        versionName '0.5'
+        versionCode 8
+        versionName '0.7'
     }
     buildTypes {
         release {

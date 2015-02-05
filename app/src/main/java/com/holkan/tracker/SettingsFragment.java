@@ -17,7 +17,6 @@ import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 
-import com.holkan.holkantracker.R;
 import com.holkan.tracker.Utils.Utils;
 import com.holkan.tracker.service.Connection;
 import com.holkan.tracker.service.Request;

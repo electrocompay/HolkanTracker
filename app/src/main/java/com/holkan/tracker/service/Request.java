@@ -37,8 +37,8 @@ public abstract class Request {
     private static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
     private static final String ENCODING_GZIP = "gzip";
 //    public static final String URL_BASE = "http://192.168.0.36:2254/api/";
-//    public static final String URL_BASE = "http://187.191.86.230/HolkanTracking/api/";
-    public static final String URL_BASE = "http://holkantracker.ddns.net:2254/api/";
+    public static final String URL_BASE = "http://187.191.86.230/HolkanTracking/api/";
+//    public static final String URL_BASE = "http://holkantracker.ddns.net:2254/api/";
 
     private class RunGetContents implements Runnable {
         private final String url;

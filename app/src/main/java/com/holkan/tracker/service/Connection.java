@@ -4,6 +4,7 @@ import android.content.Context;
 import android.location.Location;
 import android.text.format.DateUtils;
 
+import com.holkan.tracker.LocationService;
 import com.holkan.tracker.Utils.Utils;
 import com.holkan.tracker.data.Tracking;
 
@@ -135,28 +136,6 @@ public class Connection implements Request.RequestListener {
         request.setJsonParameters(parameters);
         request.setRequestListener(this);
         request.setTrackingId(tracking.getId());
-        request.run();
-    }
-
-    public void requestPostTracking(Location location, int event)
-    {
-        String imei = Utils.getImei(context);
-        PostTrackingRequest request = new PostTrackingRequest(null);
-        JsonParameters parameters = new JsonParameters();
-        parameters.put("imei", imei);
-        parameters.put("lat", location.getLatitude());
-        parameters.put("lng", location.getLongitude());
-        parameters.put("speed", Math.round(location.getSpeed()));
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
-        parameters.put("datetime", formatter.format(location.getTime()));
-        parameters.put("event", event);
-        parameters.put("accuracy", location.getAccuracy());
-        parameters.put("provider", location.getProvider());
-        parameters.put("active_gps", Utils.locationServicesAvailable(context));
-        parameters.put("battery", Utils.getBatteryLevel(context));
-        parameters.put("satellites", Utils.getSatellites(context));
-        request.setJsonParameters(parameters);
-        request.setRequestListener(this);
         request.run();
     }
 

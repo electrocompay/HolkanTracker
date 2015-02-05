@@ -11,6 +11,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.location.GpsSatellite;
 import android.location.GpsStatus;
 import android.location.Location;
 import android.location.LocationManager;
@@ -32,7 +33,7 @@ import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.holkan.holkantracker.R;
+import com.holkan.tracker.R;
 import com.holkan.tracker.Utils.Utils;
 import com.holkan.tracker.data.DaoSession;
 import com.holkan.tracker.data.Tracking;
@@ -83,6 +84,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     static final String TAG = "HolkanTracker";
     private GcmBroadcastReceiver receiver;
     private boolean forcedLocationEvent4;
+    public static int satellitesCount;
 
 
     private class GcmBroadcastReceiver extends BroadcastReceiver {
@@ -207,31 +209,22 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
             if (location == null) return;
 
-            Tracking tracking = new Tracking();
-            tracking.setDatetime(new Date());
-            tracking.setLat(location.getLatitude());
-            tracking.setLng(location.getLongitude());
-            tracking.setSpeed(Math.round(location.getSpeed()));
-            tracking.setActive_gps(Utils.locationServicesAvailable(getApplicationContext()));
-            tracking.setBattery(Utils.getBatteryLevel(getApplicationContext()));
+
+            byte event = 1;
             if (firstTracking) {
-                tracking.setEvent((byte) 6);
+                event = 6;
                 firstTracking = false;
             } else if (forcedLocationEvent3) {
-                tracking.setEvent((byte) 3);
+                event = 3;
                 forcedLocationEvent3 = false;
             } else if (forcedLocationEvent4) {
-                tracking.setEvent((byte) 4);
+                event = 4;
                 forcedLocationEvent4 = false;
-            } else
-                tracking.setEvent((byte) 1);
-            tracking.setAccuracy(location.getAccuracy());
-            tracking.setProvider(location.getProvider());
-            tracking.setSatellites(Utils.getSatellites(getApplicationContext()));
+            } else {
+                event = 1;
+            }
 
-            DaoSession dataSession = DataSession.getSession(getApplicationContext());
-            dataSession.getTrackingDao().insertWithoutSettingPk(tracking);
-            Log.d("e", "Insert: " + String.format("%f,%f acurracy: %f, time: %s", location.getLatitude(), location.getLongitude(), location.getAccuracy(), String.valueOf(new Date())));
+            Utils.saveLocation(getApplicationContext(), location, event);
         }
 
     }
@@ -279,6 +272,16 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
                 if (event == GpsStatus.GPS_EVENT_STOPPED) {
                     forcedLocationEvent4 = true;
                     forceCheckLocationRequest();
+                } else if (event == GpsStatus.GPS_EVENT_SATELLITE_STATUS) {
+                    LocationManager locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+
+                    satellitesCount = 0;
+                    GpsStatus gpsStatus = locationManager.getGpsStatus(null);
+                    for (GpsSatellite gpsSatellite : gpsStatus.getSatellites()) {
+                        if (gpsSatellite.usedInFix()) {
+                            satellitesCount++;
+                        }
+                    }
                 }
             }
         });

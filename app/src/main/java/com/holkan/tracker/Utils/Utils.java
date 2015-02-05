@@ -3,19 +3,23 @@ package com.holkan.tracker.Utils;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.location.GpsSatellite;
-import android.location.GpsStatus;
+import android.location.Location;
 import android.location.LocationManager;
 import android.os.BatteryManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+
+import com.holkan.tracker.DataSession;
+import com.holkan.tracker.LocationService;
+import com.holkan.tracker.data.DaoSession;
+import com.holkan.tracker.data.Tracking;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
-import java.util.Iterator;
+import java.util.Date;
 
 public class Utils {
 
@@ -65,21 +69,23 @@ public class Utils {
     }
 
 
-    public static int getSatellites(Context context) {
+    public static void saveLocation(Context context, Location location, byte event) {
 
-        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        Tracking tracking = new Tracking();
+        tracking.setDatetime(new Date());
+        tracking.setLat(location.getLatitude());
+        tracking.setLng(location.getLongitude());
+        tracking.setSpeed(Math.round(location.getSpeed()));
+        tracking.setActive_gps(Utils.locationServicesAvailable(context));
+        tracking.setBattery(Utils.getBatteryLevel(context));
+        tracking.setEvent(event);
+        tracking.setAccuracy(location.getAccuracy());
+        tracking.setProvider(location.getProvider());
+        tracking.setSatellites(LocationService.satellitesCount);
 
-        GpsStatus gpsStatus = locationManager.getGpsStatus(null);
-        int count=0;
-        if(gpsStatus != null) {
-            Iterable<GpsSatellite>satellites = gpsStatus.getSatellites();
-            Iterator<GpsSatellite> sat = satellites.iterator();
-            while (sat.hasNext()) {
-                count++;
-            }
-        }
+        DaoSession dataSession = DataSession.getSession(context);
+        dataSession.getTrackingDao().insertWithoutSettingPk(tracking);
+        Log.d("e", "Insert: " + String.format("%f,%f acurracy: %f, time: %s", location.getLatitude(), location.getLongitude(), location.getAccuracy(), String.valueOf(new Date())));
 
-        return count;
     }
-
 }
