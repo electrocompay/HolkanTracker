@@ -34,6 +34,7 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
         public final static Property Active_gps = new Property(8, Boolean.class, "active_gps", false, "ACTIVE_GPS");
         public final static Property Battery = new Property(9, Integer.class, "battery", false, "BATTERY");
         public final static Property Satellites = new Property(10, Integer.class, "satellites", false, "SATELLITES");
+        public final static Property Active_gprs = new Property(11, Boolean.class, "active_gprs", false, "ACTIVE_GPRS");
     };
 
 
@@ -59,7 +60,8 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
                 "'PROVIDER' TEXT," + // 7: provider
                 "'ACTIVE_GPS' INTEGER," + // 8: active_gps
                 "'BATTERY' INTEGER," + // 9: battery
-                "'SATELLITES' INTEGER);"); // 10: satellites
+                "'SATELLITES' INTEGER," + // 10: satellites
+                "'ACTIVE_GPRS' INTEGER);"); // 11: active_gprs
     }
 
     /** Drops the underlying database table. */
@@ -127,6 +129,11 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
         if (satellites != null) {
             stmt.bindLong(11, satellites);
         }
+ 
+        Boolean active_gprs = entity.getActive_gprs();
+        if (active_gprs != null) {
+            stmt.bindLong(12, active_gprs ? 1l: 0l);
+        }
     }
 
     /** @inheritdoc */
@@ -149,7 +156,8 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
             cursor.isNull(offset + 7) ? null : cursor.getString(offset + 7), // provider
             cursor.isNull(offset + 8) ? null : cursor.getShort(offset + 8) != 0, // active_gps
             cursor.isNull(offset + 9) ? null : cursor.getInt(offset + 9), // battery
-            cursor.isNull(offset + 10) ? null : cursor.getInt(offset + 10) // satellites
+            cursor.isNull(offset + 10) ? null : cursor.getInt(offset + 10), // satellites
+            cursor.isNull(offset + 11) ? null : cursor.getShort(offset + 11) != 0 // active_gprs
         );
         return entity;
     }
@@ -168,6 +176,7 @@ public class TrackingDao extends AbstractDao<Tracking, Long> {
         entity.setActive_gps(cursor.isNull(offset + 8) ? null : cursor.getShort(offset + 8) != 0);
         entity.setBattery(cursor.isNull(offset + 9) ? null : cursor.getInt(offset + 9));
         entity.setSatellites(cursor.isNull(offset + 10) ? null : cursor.getInt(offset + 10));
+        entity.setActive_gprs(cursor.isNull(offset + 11) ? null : cursor.getShort(offset + 11) != 0);
      }
     
     /** @inheritdoc */

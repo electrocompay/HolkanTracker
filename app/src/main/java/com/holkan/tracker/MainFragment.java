@@ -29,7 +29,7 @@ public class MainFragment extends Fragment {
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            updateButtonStateAlert(true);
+            updateButtonStateAlert(true, false);
         }
 
     }
@@ -52,14 +52,14 @@ public class MainFragment extends Fragment {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
                     if (hasAtLeastOnePhone()) {
-                        updateButtonStateAlert(false);
+                        updateButtonStateAlert(false, true);
                     } else {
                         alertButton.setChecked(false);
                         textAlert.setText("Alerta");
                         Toast.makeText(getActivity(), R.string.should_configure_al_least_one_phone, Toast.LENGTH_SHORT).show();
                     }
                 } else {
-                    updateButtonStateAlert(true);
+                    updateButtonStateAlert(true, false);
                 }
             }
         });
@@ -82,13 +82,14 @@ public class MainFragment extends Fragment {
         return false;
     }
 
-    private void updateButtonStateAlert(boolean b) {
+    private void updateButtonStateAlert(boolean b, boolean fromButton) {
         Intent intent = new Intent(getActivity(), SMSSenderService.class);
         if (b) {
             alertButton.setChecked(false);
             textAlert.setText("Alerta");
 
             intent.setAction(SMSSenderService.ACTION_STOP);
+            intent.putExtra("canceled", fromButton);
             getActivity().startService(intent);
         } else {
             alertButton.setChecked(true);
@@ -107,7 +108,8 @@ public class MainFragment extends Fragment {
 
     @Override
     public void onDestroy() {
-        getActivity().unregisterReceiver(smsSenderReceiver);
+        if (smsSenderReceiver != null)
+            getActivity().unregisterReceiver(smsSenderReceiver);
         super.onDestroy();
     }
 }

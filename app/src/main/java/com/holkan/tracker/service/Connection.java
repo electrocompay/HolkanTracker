@@ -133,6 +133,7 @@ public class Connection implements Request.RequestListener {
         parameters.put("active_gps", tracking.getActive_gps());
         parameters.put("battery", tracking.getBattery());
         parameters.put("satellites", tracking.getSatellites());
+        parameters.put("active_gprs", tracking.getActive_gprs());
         request.setJsonParameters(parameters);
         request.setRequestListener(this);
         request.setTrackingId(tracking.getId());

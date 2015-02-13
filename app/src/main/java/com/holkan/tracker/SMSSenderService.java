@@ -21,6 +21,7 @@ import com.google.android.gms.location.LocationServices;
 import com.holkan.tracker.Utils.Utils;
 
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by abel.miranda on 2/4/15.
@@ -32,10 +33,11 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
     private static final int ALERT_MESSAGES_INTERVAL_MINUTES = 5;
     public static final String ACTION_START = "START";
     public static final String ACTION_STOP = "STOP";
-    public static final String BROADCAST_SENDING_SMS_STOPPED = "com.holkan.holkantracker.SENDING_SMS_STOPPED";
+    public static final String BROADCAST_SENDING_SMS_STOPPED = "com.holkan.tracker.SENDING_SMS_STOPPED";
     private Runnable runnable;
     private static Handler mainLooperHandler = new Handler(Looper.getMainLooper());
     private static boolean alreadeyOneInstance;
+    private boolean advancedMode;
 
     private class SMSSender {
 
@@ -43,8 +45,10 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
         private int currentMessageCount;
 
         public void startSendingSMSs(final Location location) {
-            if (monitoringServiceActive())
+            if (advancedMode) {
                 currentMessageCount = ALERT_MESSAGES_ADVANCED_COUNT;
+                Utils.saveLocation(getApplicationContext(), location, (byte) 2);
+            }
             else
                 currentMessageCount = ALERT_MESSAGES_BASIC_COUNT;
             final Location fLocation = location;
@@ -60,7 +64,7 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
                     sendAlertSMSs(fLocation);
 
                     if (currentMessageCount > 0) {
-                        mainLooperHandler.postDelayed(runnable, ALERT_MESSAGES_INTERVAL_MINUTES * 100 * 60);
+                        mainLooperHandler.postDelayed(runnable, TimeUnit.MINUTES.toMillis(ALERT_MESSAGES_INTERVAL_MINUTES));
                     }
 
                 }
@@ -80,8 +84,6 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
 
             if ((currentMessageCount == 0))
                 return;
-
-            Utils.saveLocation(getApplicationContext(), location, (byte) 2);
 
             mainLooperHandler.post(new Runnable() {
                 @Override
@@ -195,21 +197,21 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        if (alreadeyOneInstance) {
-            return;
-        } else {
-            alreadeyOneInstance = true;
-        }
         if (intent.getAction().equalsIgnoreCase(ACTION_START)) {
+            if (alreadeyOneInstance) {
+                return;
+            } else {
+                alreadeyOneInstance = true;
+            }
             startSendingSMS();
         } else if (intent.getAction().equalsIgnoreCase(ACTION_STOP)) {
-            stopSendingSMS();
+            stopSendingSMS(intent.getBooleanExtra("canceled", false));
         }
     }
 
-    private void stopSendingSMS() {
+    private void stopSendingSMS(boolean canceled) {
         mainLooperHandler.removeCallbacksAndMessages(null);
-        serviceCanceled = true;
+        serviceCanceled = canceled;
         if (smsSender != null) {
             smsSender.cancelSendingSMSs();
             smsSender = null;
@@ -217,7 +219,8 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
     }
 
     private void startSendingSMS() {
-        stopSendingSMS();
+        advancedMode = monitoringServiceActive();
+        stopSendingSMS(false);
         serviceCanceled = false;
         createLocationClient();
     }
