@@ -1,12 +1,15 @@
 package com.holkan.tracker;
 
-import android.app.IntentService;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.telephony.SmsManager;
 import android.text.TextUtils;
@@ -26,64 +29,23 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by abel.miranda on 2/4/15.
  */
-public class SMSSenderService extends IntentService implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
+public class SMSSenderService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
     private static final int ALERT_MESSAGES_BASIC_COUNT = 3;
     private static final int ALERT_MESSAGES_ADVANCED_COUNT = 1;
     private static final int ALERT_MESSAGES_INTERVAL_MINUTES = 5;
     public static final String ACTION_START = "START";
     public static final String ACTION_STOP = "STOP";
+    public static final String ACTION_NEXT_SMS = "NEXT_SMS";
     public static final String BROADCAST_SENDING_SMS_STOPPED = "com.holkan.tracker.SENDING_SMS_STOPPED";
-    private Runnable runnable;
-    private static Handler mainLooperHandler = new Handler(Looper.getMainLooper());
-    private static boolean alreadeyOneInstance;
-    private boolean advancedMode;
+    private Handler mainLooperHandler;
+    private String action;
 
     private class SMSSender {
 
 
-        private int currentMessageCount;
-
-        public void startSendingSMSs(final Location location) {
-            if (advancedMode) {
-                currentMessageCount = ALERT_MESSAGES_ADVANCED_COUNT;
-                Utils.saveLocation(getApplicationContext(), location, (byte) 2);
-            }
-            else
-                currentMessageCount = ALERT_MESSAGES_BASIC_COUNT;
-            final Location fLocation = location;
-
-            runnable = new Runnable() {
-
-                @Override
-                public void run() {
-                    if (serviceCanceled) {
-                        smsSender.cancelSendingSMSs();
-                        return;
-                    }
-                    sendAlertSMSs(fLocation);
-
-                    if (currentMessageCount > 0) {
-                        mainLooperHandler.postDelayed(runnable, TimeUnit.MINUTES.toMillis(ALERT_MESSAGES_INTERVAL_MINUTES));
-                    }
-
-                }
-
-            };
-
-            mainLooperHandler.post(runnable);
-        }
-
-        public synchronized void cancelSendingSMSs() {
-            Log.d(getApplicationContext().getPackageName(), "Cancel Sending SMS");
-            mainLooperHandler.removeCallbacksAndMessages(null);
-            stopSelf();
-        }
-
         private synchronized void sendAlertSMSs(Location location) {
 
-            if ((currentMessageCount == 0))
-                return;
 
             mainLooperHandler.post(new Runnable() {
                 @Override
@@ -112,7 +74,7 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
                                 null,
                                 null);
 
-                        Log.d(getClass().getSimpleName(), String.format("Alerta %d: %s", currentMessageCount, smsBody));
+                        Log.d(getClass().getSimpleName(), String.format("Alerta %d: %s", getCurrentMessageCount(), smsBody));
 
                     } catch (Exception ex) {
                         mainLooperHandler.post(new Runnable() {
@@ -134,35 +96,24 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
         }
 
         private void updateSendingState() {
-            currentMessageCount--;
-            if (currentMessageCount == 0) {
+            setCurrentMessagecount(getCurrentMessageCount() - 1);
+            if (getCurrentMessageCount() == 0) {
+                stopSendingSMS();
                 Intent intent = new Intent(BROADCAST_SENDING_SMS_STOPPED);
                 getApplicationContext().sendBroadcast(intent);
-
             }
         }
 
     }
 
-    private static boolean serviceCanceled;
+    private int getCurrentMessageCount() {
+        SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences(getPackageName(), MODE_PRIVATE);
+        int currentMessageCount = sharedPreferences.getInt("currentSmsCount", 0);
+        return currentMessageCount;
+    }
+
     private GoogleApiClient googleApiClient;
     private SMSSender smsSender;
-
-
-    public SMSSenderService() {
-        super("SMSSenderService");
-    }
-
-    private synchronized void createLocationClient() {
-        if (googleApiClient != null && googleApiClient.isConnected())
-            googleApiClient.disconnect();
-        googleApiClient = new GoogleApiClient.Builder(getApplicationContext())
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
-        googleApiClient.connect();
-    }
 
     @Override
     public void onConnected(Bundle bundle) {
@@ -182,11 +133,10 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
 
     @Override
     public void onLocationChanged(Location location) {
-        if (!serviceCanceled) {
-            if (smsSender != null)
-                smsSender.cancelSendingSMSs();
-            smsSender = new SMSSender();
-            smsSender.startSendingSMSs(location);
+        smsSender = new SMSSender();
+        smsSender.sendAlertSMSs(location);
+        if (monitoringServiceActive() &&  getCurrentMessageCount() == 0){
+            Utils.saveLocation(getApplicationContext(), location, (byte) 2);
         }
     }
 
@@ -195,34 +145,73 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
         Toast.makeText(getApplicationContext(), R.string.location_service_connection_failed + connectionResult.toString(), Toast.LENGTH_LONG).show();
     }
 
+
     @Override
-    protected void onHandleIntent(Intent intent) {
-        if (intent.getAction().equalsIgnoreCase(ACTION_START)) {
-            if (alreadeyOneInstance) {
-                return;
-            } else {
-                alreadeyOneInstance = true;
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        action = intent.getAction();
+
+        if (action != null) {
+            switch (action) {
+
+                case ACTION_START:
+                    startSendingSMS();
+                    break;
+
+                case ACTION_NEXT_SMS:
+                    nextSMS();
+                    break;
+
+                case ACTION_STOP:
+                    stopSendingSMS();
+                    break;
+
+                default:
+                    break;
             }
-            startSendingSMS();
-        } else if (intent.getAction().equalsIgnoreCase(ACTION_STOP)) {
-            stopSendingSMS(intent.getBooleanExtra("canceled", false));
         }
+
+        return START_NOT_STICKY;
     }
 
-    private void stopSendingSMS(boolean canceled) {
-        mainLooperHandler.removeCallbacksAndMessages(null);
-        serviceCanceled = canceled;
-        if (smsSender != null) {
-            smsSender.cancelSendingSMSs();
-            smsSender = null;
-        }
+    private void nextSMS() {
+        if (googleApiClient != null && googleApiClient.isConnected())
+            googleApiClient.disconnect();
+        googleApiClient = new GoogleApiClient.Builder(getApplicationContext())
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+        googleApiClient.connect();
+    }
+
+    private void stopSendingSMS() {
+        AlarmManager alarmManager = (AlarmManager) getApplicationContext().getSystemService(Service.ALARM_SERVICE);
+        PendingIntent pendingIntent = getPendingIntent();
+        alarmManager.cancel(pendingIntent);
+    }
+
+    private PendingIntent getPendingIntent() {
+        Intent intent = new Intent(getApplicationContext(), AlarmReceiver.class);
+        intent.setAction(AlarmReceiver.ACTION_ALARM_SMS);
+        return PendingIntent.getBroadcast(getApplicationContext(), AlarmReceiver.REQUEST_CODE_SEND_SMS, intent, 0);
     }
 
     private void startSendingSMS() {
-        advancedMode = monitoringServiceActive();
-        stopSendingSMS(false);
-        serviceCanceled = false;
-        createLocationClient();
+        stopSendingSMS();
+        if (monitoringServiceActive()) {
+            setCurrentMessagecount(ALERT_MESSAGES_ADVANCED_COUNT);
+        } else
+            setCurrentMessagecount(ALERT_MESSAGES_BASIC_COUNT);
+
+        PendingIntent pendingIntent = getPendingIntent();
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, 0, TimeUnit.MINUTES.toMillis(ALERT_MESSAGES_INTERVAL_MINUTES), pendingIntent);
+    }
+
+    private void setCurrentMessagecount(int currentMessageCount) {
+        SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences(getPackageName(), MODE_PRIVATE);
+        sharedPreferences.edit().putInt("currentSmsCount", currentMessageCount).commit();
     }
 
     private boolean monitoringServiceActive() {
@@ -230,9 +219,18 @@ public class SMSSenderService extends IntentService implements GoogleApiClient.C
     }
 
     @Override
+    public void onCreate() {
+        super.onCreate();
+        mainLooperHandler = new Handler(Looper.getMainLooper());
+    }
+
+    @Override
     public void onDestroy() {
-        alreadeyOneInstance = false;
         super.onDestroy();
     }
 
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
 }

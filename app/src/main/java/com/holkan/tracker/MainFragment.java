@@ -47,6 +47,8 @@ public class MainFragment extends Fragment {
         textAlert = (TextView) view.findViewById(R.id.textViewAlert);
 
         alertButton = (ToggleButton) view.findViewById(R.id.alertButton);
+        if (isSendingSMS())
+            alertButton.setChecked(true);
         alertButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -67,9 +69,14 @@ public class MainFragment extends Fragment {
         return view;
     }
 
+    private boolean isSendingSMS() {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences(getActivity().getPackageName(), Context.MODE_PRIVATE);
+        int currentMessageCount = sharedPreferences.getInt("currentSmsCount", 0);
+        return currentMessageCount > 0;
+    }
+
     private boolean hasAtLeastOnePhone() {
         SharedPreferences preferences = getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE);
-        Log.d(getActivity().getPackageName(), "Sending SMS");
 
         for (int i = 1; i < 4; i++) {
 

@@ -64,6 +64,7 @@
         <!--</receiver>-->
 
         <service android:name="com.holkan.tracker.SMSSenderService" />
+        <receiver android:name=".AlarmReceiver"/>
 
     </application>
 

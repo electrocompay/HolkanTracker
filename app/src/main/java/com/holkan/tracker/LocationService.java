@@ -413,17 +413,25 @@ public class LocationService extends Service implements Connection.ConnectionLis
             interval = currentPlanInterval.getInterval();
         }
 
-        poolLocatorExecutor = new ScheduledThreadPoolExecutor(1);
-        poolLocatorExecutor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        createLocatorExecutor();
 
         scheduleLocatorInterval(interval);
 
 
     }
 
+    private void createLocatorExecutor() {
+        poolLocatorExecutor = new ScheduledThreadPoolExecutor(1);
+        poolLocatorExecutor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+    }
+
     private void scheduleLocatorInterval(long interval) {
 
         currentInterval = interval;
+
+        poolLocatorExecutor.shutdown();
+
+        createLocatorExecutor();
 
         poolLocatorExecutor.scheduleAtFixedRate(new Runnable() {
 
