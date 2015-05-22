@@ -2,6 +2,8 @@ package com.holkan.tracker.service;
 
 import org.apache.http.client.methods.HttpPost;
 
+import android.content.Context;
+
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -9,8 +11,8 @@ import java.util.concurrent.ExecutorService;
  */
 public class SetNotificationIdRequest extends JsonRequest {
 
-    public SetNotificationIdRequest(ExecutorService executorService) {
-        super(executorService);
+    public SetNotificationIdRequest(ExecutorService executorService, Context context) {
+        super(executorService, context);
     }
 
     @Override

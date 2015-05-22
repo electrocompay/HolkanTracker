@@ -61,6 +61,7 @@ public class LocationService extends Service implements Connection.ConnectionLis
 
     private static final int NOTIFICATION_ID = 1;
     public static final String STAT_SERVICE_STARTED = "SERVICE_STARTED";
+    private static final long RECONECT_DELAY_MILLISEC = 10000;
     private TrackingDAOQueue trackingQueue;
     private Connection connection;
     private Device device;
@@ -84,6 +85,8 @@ public class LocationService extends Service implements Connection.ConnectionLis
     private ScheduledThreadPoolExecutor poolLocatorExecutor;
     private long currentInterval;
     private PowerManager.WakeLock wl;
+    private ScheduledThreadPoolExecutor mTimer;
+    private long sendDelay;
 
 
     private class GcmBroadcastReceiver extends BroadcastReceiver {
@@ -143,6 +146,7 @@ public class LocationService extends Service implements Connection.ConnectionLis
         if (request instanceof GetDeviceRequest) {
             tryConnectLater();
         } else if (request instanceof PostTrackingRequest) {
+            sendDelay = System.currentTimeMillis() + RECONECT_DELAY_MILLISEC;
             PostTrackingRequest postTrackingRequest = (PostTrackingRequest) request;
 
             TrackingDao trackingDao = DataSession.getSession(getApplicationContext()).getTrackingDao();
@@ -153,6 +157,7 @@ public class LocationService extends Service implements Connection.ConnectionLis
                 tracking.setActive_gprs(false);
             }
             trackingDao.insertOrReplace(tracking);
+
         }
     }
 
@@ -161,8 +166,8 @@ public class LocationService extends Service implements Connection.ConnectionLis
         private Boolean sendingTracking = false;
 
         public TrackingDAOQueue() {
-            ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1);
-            timer.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+            mTimer = new ScheduledThreadPoolExecutor(1);
+            mTimer.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             Runnable r = new Runnable() {
 
                 @Override
@@ -184,7 +189,11 @@ public class LocationService extends Service implements Connection.ConnectionLis
                             for (Tracking tracking : trackingList) {
                                 try {
 
-                                    connection.requestPostTracking(tracking);
+                                    if (sendDelay == 0 || System.currentTimeMillis() > sendDelay) {
+                                        if (sendDelay != 0)
+                                            sendDelay = 0;
+                                        connection.requestPostTracking(tracking);
+                                    }
 
 
                                 } catch (Exception e) {
@@ -200,7 +209,7 @@ public class LocationService extends Service implements Connection.ConnectionLis
 
                 }
             };
-            timer.scheduleAtFixedRate(r, 0, 1, TimeUnit.SECONDS);
+            mTimer.scheduleAtFixedRate(r, 0, 1, TimeUnit.SECONDS);
         }
 
     }
@@ -457,7 +466,6 @@ public class LocationService extends Service implements Connection.ConnectionLis
                     }
                 }, TimeUnit.SECONDS.toMillis(TIMEOUT_DELAY));
 
-
                 PlanInterval configuredIntervalPlan = getCurrentPlanInterval();
 
                 if (currentInterval != configuredIntervalPlan.getInterval()) {
@@ -484,7 +492,7 @@ public class LocationService extends Service implements Connection.ConnectionLis
             public void run() {
                 callGetDevice();
             }
-        }, 10000);
+        }, RECONECT_DELAY_MILLISEC);
     }
 
     private void registerInBackground() {
@@ -570,6 +578,5 @@ public class LocationService extends Service implements Connection.ConnectionLis
             throw new RuntimeException("Could not get package name: " + e);
         }
     }
-
 
 }

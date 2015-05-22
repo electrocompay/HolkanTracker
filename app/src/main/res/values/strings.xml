@@ -29,5 +29,11 @@
     <string name="Cancel">Cancelar</string>
     <string name="servicios_localizacion_inactivo">Servicios de localización inactivos. Haga click para activarlos</string>
     <string name="should_configure_al_least_one_phone">Debe configurar al menos un número de teléfono</string>
+    <string name="sent_packets">Paquetes enviados</string>
+    <string name="received_packets">Paquetes recibidos</string>
+    <string name="total_packets">Paquetes totales</string>
+    <string name="zero">0</string>
+    <string name="zero_bytes">0 Bytes</string>
+    <string name="reset_data">Limpiar datos</string>
 
 </resources>

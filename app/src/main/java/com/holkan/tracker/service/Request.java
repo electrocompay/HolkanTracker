@@ -1,9 +1,13 @@
 package com.holkan.tracker.service;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.holkan.tracker.BuildConfig;
+import com.holkan.tracker.SettingsFragment;
 import com.holkan.tracker.Utils.Utils;
 
 import org.apache.http.Header;
@@ -38,6 +42,11 @@ public abstract class Request {
     private static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
     private static final String ENCODING_GZIP = "gzip";
     public static final String URL_BASE = BuildConfig.DEBUG ? "http://holkantracker.ddns.net:2254/api/" : "http://www.holkantracker.com/HolkanTracking/api/";
+    public static final String SHARED_PREFERENCE_STATUS = "SHARED_PREFERENCE_STATUS";
+    public static final String SHARED_PREFERENCES_SENT = "SHARED_PREFERENCES_SENT";
+    public static final String SHARED_PREFERENCES_RECEIVED = "SHARED_PREFERENCES_RECEIVED";
+    private final Context mContext;
+
 
     private class RunGetContents implements Runnable {
         private final String url;
@@ -75,6 +84,7 @@ public abstract class Request {
                     StringEntity entity = new StringEntity(payLoad, "UTF-8");
                     // StringEntity entity = new StringEntity(payLoad);
 
+                    notifySentPacket(Math.round(entity.getContentLength() / 3.0));
                     ((HttpPost) urlRequest).setEntity(entity);
                     Log.d(getClass().toString(), String.format("Payload - %s", payLoad));
                 }
@@ -149,8 +159,9 @@ public abstract class Request {
     private long responseCachingTime = INVALID_TIME;
     private String urlBase;
 
-    public Request(ExecutorService executorService) {
+    public Request(ExecutorService executorService, Context context) {
         this.executorService = executorService;
+        this.mContext = context;
     }
 
     public String getMethod() {
@@ -230,6 +241,7 @@ public abstract class Request {
         @Override
         public void process(final HttpResponse response, final HttpContext context) {
             final HttpEntity entity = response.getEntity();
+            notifyReceivedPacket(entity.getContentLength());
             final Header encoding = entity.getContentEncoding();
             if (encoding != null) {
                 inflateGzip(response, encoding);
@@ -261,4 +273,24 @@ public abstract class Request {
             return -1;
         }
     }
+
+    private void notifySentPacket(long size){
+        SharedPreferences preferences = mContext.getSharedPreferences(SHARED_PREFERENCE_STATUS, Context.MODE_PRIVATE);
+        long sent = preferences.getLong(SHARED_PREFERENCES_SENT, 0) + size;
+        preferences.edit().putLong(SHARED_PREFERENCES_SENT, sent).commit();
+        broadcastSentPacket();
+    }
+
+    private void broadcastSentPacket() {
+        Intent i = new Intent(SettingsFragment.ACTION_PACKETS_SENT);
+        mContext.sendBroadcast(i);
+    }
+
+    private void notifyReceivedPacket(long size){
+        SharedPreferences preferences =  mContext.getSharedPreferences(SHARED_PREFERENCE_STATUS, Context.MODE_PRIVATE);
+        long rec = preferences.getLong(SHARED_PREFERENCES_RECEIVED, 0) + size;
+        preferences.edit().putLong(SHARED_PREFERENCES_RECEIVED, rec).commit();
+        broadcastSentPacket();
+    }
+
 }

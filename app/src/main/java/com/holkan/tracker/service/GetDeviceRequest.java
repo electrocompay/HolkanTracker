@@ -2,6 +2,8 @@ package com.holkan.tracker.service;
 
 import org.apache.http.client.methods.HttpGet;
 
+import android.content.Context;
+
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -11,8 +13,8 @@ public class GetDeviceRequest extends JsonRequest {
 
     private String imei;
 
-    public GetDeviceRequest(ExecutorService executorService) {
-        super(executorService);
+    public GetDeviceRequest(ExecutorService executorService, Context context) {
+        super(executorService, context);
     }
 
     @Override

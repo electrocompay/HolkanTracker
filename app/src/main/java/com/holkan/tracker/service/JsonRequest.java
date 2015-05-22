@@ -4,15 +4,18 @@ import java.util.concurrent.ExecutorService;
 
 import org.json.JSONObject;
 
+import android.content.Context;
+
+
 public class JsonRequest extends Request
 {
 
     private JsonParameters map;
     private JSONObject jsonObject;
 
-    public JsonRequest(ExecutorService executorService)
+    public JsonRequest(ExecutorService executorService, Context context)
     {
-        super(executorService);
+        super(executorService, context);
     }
 
     @Override

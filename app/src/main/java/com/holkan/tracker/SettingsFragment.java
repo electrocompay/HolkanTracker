@@ -2,8 +2,11 @@ package com.holkan.tracker;
 
 
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,8 +17,10 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import com.holkan.tracker.Utils.Utils;
 import com.holkan.tracker.service.Connection;
@@ -34,8 +39,14 @@ public class SettingsFragment extends Fragment {
     private static final String PREF_PHONE2 = "PHONE2";
     private static final String PREF_PHONE3 = "PHONE3";
     public static final String PREF_AUTOSTART_SERVICE = "AUTOSTART_SERVICE";
+    public static final String ACTION_PACKETS_SENT = "ACTION_PACKETS_SENT";
     private Connection connection;
     private SwitchCompat switchCompat;
+
+    private TextView textSent;
+    private TextView textReceived;
+    private TextView textTotal;
+    private PacketSentReceiver mPacketSentReceiver;
 
     public SettingsFragment() {
         // Required empty public constructor
@@ -139,6 +150,19 @@ public class SettingsFragment extends Fragment {
             }
         });
 
+        textSent = (TextView)view.findViewById(R.id.sent_packets);
+        textReceived = (TextView)view.findViewById(R.id.received_packets);
+        textTotal = (TextView)view.findViewById(R.id.total_packets);
+
+        Button buttonReset = (Button)view.findViewById(R.id.button);
+
+        buttonReset.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                resetCounters();
+            }
+        });
+
         return view;
     }
 
@@ -209,5 +233,51 @@ public class SettingsFragment extends Fragment {
     private String loadFromPreference(String prefName) {
         return getActivity().getSharedPreferences("settings", Context.MODE_PRIVATE).getString(prefName, "");
     }
+
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        mPacketSentReceiver = new PacketSentReceiver();
+        getActivity().registerReceiver(mPacketSentReceiver, new IntentFilter(ACTION_PACKETS_SENT));
+        refreshCounters();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        getActivity().unregisterReceiver(mPacketSentReceiver);
+    }
+
+    private class PacketSentReceiver extends BroadcastReceiver{
+
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+
+            refreshCounters();
+        }
+    }
+
+    private void refreshCounters() {
+
+        SharedPreferences pref = getActivity().getSharedPreferences(Request.SHARED_PREFERENCE_STATUS, Context.MODE_PRIVATE);
+        long sent = Math.round(pref.getLong(Request.SHARED_PREFERENCES_SENT, 0) / 1024.0f);
+        long recv = Math.round(pref.getLong(Request.SHARED_PREFERENCES_RECEIVED, 0) / 1024.0f);
+        long total = sent + recv;
+        textSent.setText(String.valueOf(sent) + " KB");
+        textReceived.setText(String.valueOf(recv) + " KB");
+        textTotal.setText(String.valueOf(total) + " KB");
+    }
+
+    private void resetCounters() {
+        SharedPreferences preferences =  getActivity().getSharedPreferences(Request.SHARED_PREFERENCE_STATUS, Context.MODE_PRIVATE);
+        preferences.edit()
+                .putLong(Request.SHARED_PREFERENCES_SENT, 0)
+                .putLong(Request.SHARED_PREFERENCES_RECEIVED, 0)
+                .commit();
+        refreshCounters();
+    }
+
 
 }

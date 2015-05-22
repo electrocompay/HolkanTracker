@@ -3,6 +3,8 @@ package com.holkan.tracker.service;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 
+import android.content.Context;
+
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -13,8 +15,8 @@ public class PostTrackingRequest extends JsonRequest {
 
     private long trackingId;
 
-    public PostTrackingRequest(ExecutorService executorService) {
-        super(executorService);
+    public PostTrackingRequest(ExecutorService executorService, Context context) {
+        super(executorService, context);
     }
 
     @Override

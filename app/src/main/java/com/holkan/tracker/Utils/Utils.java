@@ -43,6 +43,7 @@ public class Utils {
     }
 
     public static String getImei(Context context) {
+//        return "357157050174843";
         TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         return telephonyManager.getDeviceId();
     }
@@ -108,6 +109,14 @@ public class Utils {
             }
         }
         return false;
+    }
+
+    public static void LogSentPacket(int size){
+
+    }
+
+    public static void logreceivedPacket(int size){
+
     }
 
 }

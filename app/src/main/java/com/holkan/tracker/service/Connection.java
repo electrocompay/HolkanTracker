@@ -110,7 +110,7 @@ public class Connection implements Request.RequestListener {
 
     public void requestGetDevice(String imei)
     {
-        GetDeviceRequest request = new GetDeviceRequest(poolExecutor);
+        GetDeviceRequest request = new GetDeviceRequest(poolExecutor, context);
         request.setImei(imei);
         request.setRequestListener(this);
         request.run();
@@ -119,7 +119,7 @@ public class Connection implements Request.RequestListener {
     public void requestPostTracking(Tracking tracking)
     {
         String imei = Utils.getImei(context);
-        PostTrackingRequest request = new PostTrackingRequest(null);
+        PostTrackingRequest request = new PostTrackingRequest(null, context);
         JsonParameters parameters = new JsonParameters();
         parameters.put("imei", imei);
         parameters.put("lat", tracking.getLat());
@@ -143,7 +143,7 @@ public class Connection implements Request.RequestListener {
     public void requestSetNotificationId(String notificationId)
     {
         String imei = Utils.getImei(context);
-        SetNotificationIdRequest request = new SetNotificationIdRequest(poolExecutor);
+        SetNotificationIdRequest request = new SetNotificationIdRequest(poolExecutor, context);
         JsonParameters parameters = new JsonParameters();
         parameters.put("imei", imei);
         parameters.put("notificationId", notificationId);
