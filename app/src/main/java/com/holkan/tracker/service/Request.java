@@ -1,11 +1,5 @@
 package com.holkan.tracker.service;
 
-import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.text.TextUtils;
-import android.util.Log;
-
 import com.holkan.tracker.BuildConfig;
 import com.holkan.tracker.SettingsFragment;
 import com.holkan.tracker.Utils.Utils;
@@ -31,11 +25,17 @@ import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.RequestExpectContinue;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.text.TextUtils;
+import android.util.Log;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.util.concurrent.ExecutorService;
 import java.util.zip.GZIPInputStream;
+
 
 public abstract class Request {
 
@@ -49,6 +49,7 @@ public abstract class Request {
 
 
     private class RunGetContents implements Runnable {
+
         private final String url;
         private HttpClient connection;
         private final RequestListener requestListener;
@@ -67,14 +68,13 @@ public abstract class Request {
                 urlRequest = new HttpPost(url);
             }
 
-
             Log.d(getClass().toString(), String.format("httpRequest - %s", urlRequest.getURI().toString()));
 
             // connection = Request.getNewHttpClient();
             HttpParams params = new BasicHttpParams();
             HttpConnectionParams.setConnectionTimeout(params, 3000);
             connection = httpGZIPClient(httpGZIPClient(new DefaultHttpClient(params)));
-            ((DefaultHttpClient) connection).removeRequestInterceptorByClass(RequestExpectContinue.class);
+            ((DefaultHttpClient)connection).removeRequestInterceptorByClass(RequestExpectContinue.class);
 
             try {
                 String payLoad = getPayLoad();
@@ -85,7 +85,7 @@ public abstract class Request {
                     // StringEntity entity = new StringEntity(payLoad);
 
                     notifySentPacket(Math.round(entity.getContentLength() / 3.0));
-                    ((HttpPost) urlRequest).setEntity(entity);
+                    ((HttpPost)urlRequest).setEntity(entity);
                     Log.d(getClass().toString(), String.format("Payload - %s", payLoad));
                 }
 
@@ -104,7 +104,6 @@ public abstract class Request {
                 long endTime = System.currentTimeMillis();
                 long intervalInMilliseconds = endTime - startTime;
 
-
                 Log.d(getClass().toString(), String.format("Response Payload - %s", data));
 
                 if (requestListener != null) {
@@ -115,7 +114,7 @@ public abstract class Request {
 
                     } else {
 
-                        if (TextUtils.isEmpty(data)){
+                        if (TextUtils.isEmpty(data)) {
                             data = String.valueOf(response.getStatusLine().getStatusCode());
                         }
                         handleError(null, response, data);
@@ -139,6 +138,7 @@ public abstract class Request {
 
     }
 
+
     public interface RequestListener {
 
         public void didReceiveContent(Request request, HttpResponse httpResponse, String content);
@@ -146,6 +146,7 @@ public abstract class Request {
         public void didReceiveError(Request request, HttpResponse httpResponse, String content);
 
     }
+
 
     public static HttpClient httpclient;
 
@@ -238,6 +239,7 @@ public abstract class Request {
     }
 
     private class GzipHttpResponseInterceptor implements HttpResponseInterceptor {
+
         @Override
         public void process(final HttpResponse response, final HttpContext context) {
             final HttpEntity entity = response.getEntity();
@@ -258,7 +260,9 @@ public abstract class Request {
         }
     }
 
+
     private class GzipInflatingEntity extends HttpEntityWrapper {
+
         public GzipInflatingEntity(final HttpEntity wrapped) {
             super(wrapped);
         }
@@ -274,7 +278,7 @@ public abstract class Request {
         }
     }
 
-    private void notifySentPacket(long size){
+    private void notifySentPacket(long size) {
         SharedPreferences preferences = mContext.getSharedPreferences(SHARED_PREFERENCE_STATUS, Context.MODE_PRIVATE);
         long sent = preferences.getLong(SHARED_PREFERENCES_SENT, 0) + size;
         preferences.edit().putLong(SHARED_PREFERENCES_SENT, sent).commit();
@@ -286,8 +290,8 @@ public abstract class Request {
         mContext.sendBroadcast(i);
     }
 
-    private void notifyReceivedPacket(long size){
-        SharedPreferences preferences =  mContext.getSharedPreferences(SHARED_PREFERENCE_STATUS, Context.MODE_PRIVATE);
+    private void notifyReceivedPacket(long size) {
+        SharedPreferences preferences = mContext.getSharedPreferences(SHARED_PREFERENCE_STATUS, Context.MODE_PRIVATE);
         long rec = preferences.getLong(SHARED_PREFERENCES_RECEIVED, 0) + size;
         preferences.edit().putLong(SHARED_PREFERENCES_RECEIVED, rec).commit();
         broadcastSentPacket();

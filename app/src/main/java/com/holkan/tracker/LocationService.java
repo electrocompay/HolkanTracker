@@ -61,7 +61,7 @@ public class LocationService extends Service implements Connection.ConnectionLis
 
     private static final int NOTIFICATION_ID = 1;
     public static final String STAT_SERVICE_STARTED = "SERVICE_STARTED";
-    private static final long RECONECT_DELAY_MILLISEC = 10000;
+    private static final long RECONECT_DELAY_MILLISEC = 30000;
     private TrackingDAOQueue trackingQueue;
     private Connection connection;
     private Device device;
@@ -379,6 +379,9 @@ public class LocationService extends Service implements Connection.ConnectionLis
 
         if (poolLocatorExecutor != null)
             poolLocatorExecutor.shutdown();
+
+        if (mTimer != null)
+            mTimer.shutdown();
 
         wl.release();
         super.onDestroy();
